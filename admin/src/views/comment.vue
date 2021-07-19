@@ -2,166 +2,150 @@
     <div class="comment">
         <div class="header">
             <h1>
-                评论列表 ({{total}}) 
-                <span @click="onRead" class="read-btn" v-if="$data.unread">
+                评论列表 ({{ total }}) 
+                <span @click="onRead" class="read-btn" v-if="unread">
                     <i class="el-icon-refresh"></i>
-                    一键已读
+                    一键已读 ({{ unread }})
                 </span>
             </h1>
         </div>
         <el-table :data="data">
             <el-table-column label="Name" width=140>
-                <template slot-scope="scope">
-                    <p><span v-if="scope.row.status == 1" class="read">1</span> {{scope.row.name}}</p>
-                </template>
+                <p slot-scope="scope">
+                    <span v-if="scope.row.status == 1" class="read">1</span> {{ scope.row.name }}
+                </p>
             </el-table-column>
             <el-table-column label="Content">
-                <template slot-scope="scope">
-                    <p>{{scope.row.content}}</p>
-                </template>
+                <p slot-scope="scope">{{ scope.row.content }}</p>
             </el-table-column>
             <el-table-column label="Date" width=130>
-                <template slot-scope="scope">
-                    <span>{{scope.row.time.time}} {{scope.row.time.month.en}} {{scope.row.time.day.on}}</span>
-                </template>
+                <span slot-scope="scope">
+                    {{ $getDate(scope.row.time) }}
+                </span>
             </el-table-column>
             <el-table-column label="options" width=100>
                 <template slot-scope="scope">
-                    <el-tooltip class="item" effect="dark" content="View Article" placement="top">
-                        <i class="el-icon-view" @click="view(scope.row.topic_id)"></i>
+                    <el-tooltip 
+                        class="item" 
+                        effect="dark" 
+                        :content="item.text" 
+                        placement="top"
+                        v-for="(item, index) in options"
+                        :key="index"
+                    >
+                        <i :class="item.icon" @click="option(scope.row, index)"></i>
                     </el-tooltip>
-                    
-                    <el-tooltip class="item" effect="dark" content="Reply" placement="top">
-                        <i class="el-icon-chat-line-round" @click="reply(scope.row)"></i>
-                    </el-tooltip>
-                    <i class="el-icon-delete" @click="remove(scope.row)"></i>
                 </template>
             </el-table-column>
         </el-table>
 
-        <el-pagination
-            background
-            :page-size="10"
-            :pager-count="5"
-            :total="total"
-            :current-page="page"
-            @current-change="load"
-            layout="prev, pager, next"
-        >
-        </el-pagination>
-
-        <Comment :message="replyData" @Load="resetLoad" ref="comment"></Comment>
+        <Pagination 
+            :data="total"
+            :page="page"
+            @update="load" 
+        />
+        <Comment 
+            :message="replyData" 
+            @Load="load" 
+            ref="comment"
+        ></Comment>
     </div>
 </template>
 
 <script>
-import { mapState } from 'vuex'
-import Comment from '@/components/comment'
+import Comment from '@/components/Comment'
+import Pagination from '@/components/Pagination'
 export default {
-    components: { Comment },
+    components: { 
+        Comment,
+        Pagination
+    },
     data() {
         return {
             data: [],
             total: 0,
-            count: 10,
             page: 1,
             replyData: '',
-            loading: ''
+            options: [
+                {
+                    icon: 'el-icon-view',
+                    text: 'View Article'
+                },
+                {
+                    icon: 'el-icon-chat-line-round',
+                    text: 'Reply'
+                },
+                {
+                    icon: 'el-icon-delete',
+                    text: 'Delete'
+                }
+            ]
+        }
+    },
+    computed: {
+        unread() {
+            return this.$store.state.$data.unread
         }
     },
     created(){
-        this.load();
-    },
-    mounted(){
-        document.querySelector('.content').style.overflow = 'hidden'
-    },
-    destroyed(){
-        document.querySelector('.content').style.overflow = 'auto'
-    },
-    computed: {
-        ...mapState(['$data']),
+        this.load()
     },
     methods: {
-        // 回复
-        reply(data){
-            this.replyData = data;
-            this.$refs.comment.close();
-        },
-        load(page){
-            /**
-             * vuex 存在当前页数据
-             */
-            const comment = this.$store.state.comment;
-            if(comment[page]){
-                this.data = comment[page];
-                return
-            }
-
-            this.loading = this.$loading({target: '.container'})
-            
-            this.$http.get('/comment', {
-                params: { page }
-            }).then(res => {
-                setTimeout(() => {
-                    const data = res.data.body;
-
-                    // 当前页面数据
-                    ['data', 'total', 'page'].map(i => this[i] = data[i])
-
-                    /**
-                     * 添加数据到vuex，请求优化
-                     */
-                    this.$store.commit('setCache', {
-                        type: 'comment',
-                        page: page || 1,
-                        data: this.data,
-                        total: this.total
-                    })
-                    this.loading.close()
-                }, 800)
-            })
-        },
-        resetLoad(){
-            this.$store.commit('resetCache', 'comment')
-            this.load()
-        },
-        // 新窗口打开文章
-        view(id){
-            window.open(`${window.location.origin}/${id}`)
-        },
-        remove(data){
-            const message = data.parent_id ? '删除该评论, 是否继续?' : '当前为一级评论, 会连同子评论一块删除哦~'
-
-            this.$confirm(message, '提示', {
-                confirmButtonText: '确定',
-                cancelButtonText: '取消',
-                type: 'warning'
-            }).then(() => {
-                this.$http.delete(`/comment`, { data }).then(res => {
-                    if(res.data.status === 1){
-                        setTimeout(() => {
-                            this.$store.commit('resetCache', 'comment')
-                            this.load()
-                            this.$message({
-                                type: 'success',
-                                message: '删除成功!'
-                            })
-                            this.$infoUpdate() // 刷新状态
-                        }, 1000)
-                    }
+        load(page) {
+            this.$request(() => this.$http.get('/comment', {
+                    params: { page }
+                }).then(res => {
+                    ['data', 'total', 'page'].map(i => this[i] = res.data.body[i])
                 })
-            }).catch(() => {
-                this.$message({
-                    type: 'info',
-                    message: '已取消删除'
-                });
-            });
+            )  
         },
-        // 一键已读
-        onRead(){
+        option(data, index) {
+            const o = {
+                0: () => {
+                    window.open(`${window.location.origin}/${data.topic_id}`)
+                },
+                1: () => {
+                    this.replyData = data
+                    this.$refs.comment.close()
+                },
+                2: () => {
+                    const message = data.parent_id ? '删除该评论, 是否继续?' : '当前为一级评论, 会连同子评论一块删除哦~'
+                    this.$confirm(message, '提示', {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        type: 'warning'
+                    }).then(() => {
+                        this.$request(() => this.$http.delete(`/comment`, { 
+                            params: {
+                                id: data.id,
+                                parent_id: data.parent_id
+                            }
+                        }).then(res => {
+                            if (res.data.status === 1) {
+                                this.load()
+                                this.$message.success('删除成功!')
+                            } else {
+                                this.$message.error(res.data.body.message)
+                            }
+                        }))
+                    }).catch(() => {
+                        this.$message({
+                            type: 'info',
+                            message: '已取消删除'
+                        });
+                    });
+                }
+            }
+            o[index]()
+        },
+        onRead() {
             this.$http.post(`comment_read`).then(res => {
-                this.load()
-                this.$store.commit('updateUnread')
+                if (res.data.status === 1) {
+                    this.load()
+                    this.$store.commit('updateUnread')
+                } else {
+                    this.$message.error(res.data.body.message)
+                }
             })
         }
     }
@@ -229,7 +213,7 @@ export default {
         text-align: center;
         line-height: 15px;
     }
-    /deep/ .el-table{
+    ::v-deep .el-table{
         .el-table__body-wrapper{
             height: calc(100% - 80px);
             overflow: auto;
@@ -258,7 +242,7 @@ export default {
         .el-pagination{
             bottom: 5px !important;
         }
-        /deep/ .el-table__header{
+        ::v-deep .el-table__header{
             width: 100% !important;
             display: block;
             thead{
@@ -285,7 +269,7 @@ export default {
                 }
             }
         }
-        /deep/ .el-table__body{
+        ::v-deep .el-table__body{
             width: 100% !important;
             display: block;
             tbody{

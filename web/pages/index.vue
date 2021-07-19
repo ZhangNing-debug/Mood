@@ -1,13 +1,12 @@
 <template>
-	<div class="container index" :class="{navActive: isNav}">
+	<div class="container index" :class="{ navActive: isNav }" v-if="info">
 		<div class="cover">
-			<div id="scene" :style="{height:boxH}">
+			<div id="scene" :style="{ height:boxH }">
 				<div class="layer" data-depth="0.4" :style="layerStyle">
 					<img id="image" :style="imgStyle" :src="image" width="1920" height="1080">
 				</div>
 			</div>
 			<div class="head">
-				<!-- <div class="logo"><span class="iconfont icon-logo4"></span></div> -->
 				<div class="logo-img">
 					<img src="/image/logo/logo1.png">
 					<img src="/image/logo/logo2.png">
@@ -16,181 +15,176 @@
 					<span class="iconfont" :class="isNav ? 'icon-close' : 'icon-menu'"></span>
 				</div>
 			</div>
-			<div class="misk" :style="{backgroundColor: info.cover.color}"></div>
+			<div class="misk" :style="{ backgroundColor: info.cover.color }"></div>
 			<div class="post">
-				<div class="time">{{info.cover.date}}</div>
-				<div class="title"><nuxt-link :to="info.cover.link">{{info.cover.title}}</nuxt-link></div>
-				<div class="describe">{{info.cover.describe}}</div>
-			</div>
-			<!-- menu -->
-			<div class="nav">
-				<ul class="nav-list">
-					<template v-for="(item, index) in navList">
-						<template v-if="item.url == 'subscribe'">
-							<li v-if="$store.state.data.email_subscribe" :key="index">
-								<a @click="toPage(item.url)">{{item.title}}</a>
-							</li>
-						</template>
-						<li v-else :key="index">
-							<a @click="toPage(item.url)">{{item.title}}</a>
-						</li>
-					</template>
-				</ul>
-				<div class="world">
-					<span>Everywhere in the world has a similar life.</span>
+				<div class="time">{{ info.cover.date }}</div>
+				<div class="title">
+					<nuxt-link :to="info.cover.link">{{ info.cover.title }}</nuxt-link>
 				</div>
+				<div class="describe">{{ info.cover.describe }}</div>
 			</div>
+			<Menu />
 		</div>
 
-		<div class="content" v-if="Object.keys(articleList.data).length > 0">
-			<div class="post" v-for="(item, index) in articleList.data" :key="index">
-				<div class="img-box" @click="article(item.id)">
-					<img v-lazy="item.image.url" src="/image/other/default.jpg" :alt="item.image.name">
-				</div>
-				<div class="info">
-					<div class="time">{{item.time.month.cn}}月 {{item.time.day.on}}, {{item.time.year}}</div>
-					<div class="title"><a @click="article(item.id)">{{item.title}}</a></div>
-					<div class="describe">{{item.describe}}</div>
-					<div class="stuff">
-						<div><i class="iconfont icon-text"></i><span>{{item.words}}</span></div>
-						<div><i class="iconfont icon-eye"></i><span>{{item.read}}</span></div>
-						<div><i class="iconfont icon-like"></i><span>{{item.like}}</span></div>
+		<template v-if="Object.keys(list.data).length > 0">
+			<div class="content">
+				<div class="post" 
+					v-for="(item, index) in list.data" 
+					:key="index"
+				>
+					<div class="img-box" @click="toArticle(item.id)">
+						<img 
+							v-lazy="item.image.url" 
+							src="/image/other/default.jpg" 
+							:alt="item.image.name"
+						>
+					</div>
+					<div class="info">
+						<div class="time">{{ getDate(item.time) }}</div>
+						<div class="title">
+							<a @click="toArticle(item.id)">{{ item.title }}</a>
+						</div>
+						<div class="describe">{{ item.describe }}</div>
+						<div class="stuff">
+							<div v-for="(v, i) in infoIcon" :key="i">
+								<i class="iconfont" :class="v.icon"></i><span>{{ item[v.name] }}</span>
+								<span class="hint" :style="{ backgroundColor: v.color }">{{ v.text }}<i :style="{ borderTopColor: v.color }"></i></span>
+							</div>
+						</div>
 					</div>
 				</div>
+				<div @click="loadMoreData" class="more">
+					<LoadMore />
+				</div>
 			</div>
-			<div @click="loadMoreData" class="more"><LoadMore :loadingType="loadingType"></LoadMore></div>
+		</template>
+		<template v-else>
+			<div  class="content-null">
+				主人太懒了，还没发表任何文章！！
+			</div>
+		</template>
+		<div class="foot" v-if="info.other && info.other.icp_txt">
+			<a :href="info.other.icp_link" target="_blank">{{ info.other.icp_txt }}</a>
 		</div>
+		<BackTop />
+		<Loading v-if="loading" />
+	</div>
 
-		<div class="foot" v-if="info.cover.icp_txt">
-			<a :href="info.cover.icp_link" target="_blank">{{info.cover.icp_txt}}</a>
-		</div>
-
-		<BackTop v-if="isBack"></BackTop>
-
-		<!-- loading -->
-		<Loading v-if="loading"></Loading>
+	<div v-else class="empty-data">
+		请到管理员后台填写完整信息！
 	</div>
 </template>
-
 <script>
 import Parallax from 'parallax-js'
+import Menu from '@/components/Menu'
 export default {
 	name: 'index',
-	data(){
-		return{
+	components: {
+		Menu
+	},
+	data() {
+		return {
 			layerStyle: {},
 			imgStyle: {},
 			boxH: '100%',
 			boxW: '100%',
-			navList: [
-				{
-					title: 'Article',
-					url: 'article'
-				},
-				{
-					title: 'Rainy',
-					url: 'rain'
-				},
-				{
-					title: 'Envelope',
-					url: 'envelope'
-				},
-				{
-					title: 'Subscribe',
-					url: 'subscribe'
-				},
-				{
-					title: "About",
-					url: 'about'
-				}
-			],
 			isNav: false,
 			loading: true,
-			loadingType: 'more',
-			page: 1,
-			
-			isBack: true,
 
 			image: null,
-            windowChange: () => {}
+            windowChange: () => {},
+
+			infoIcon: [{
+				icon: 'icon-text',
+				name: 'words',
+				text: '善良',
+				color: '#EF6D57'
+			}, {
+				icon: 'icon-eye',
+				name: 'read',
+				text: '勇敢',
+				color: '#50bcb6'
+			}, {
+				icon: 'icon-like',
+				name: 'like',
+				text: '热爱',
+				color: '#ffa800'
+			}]
 		}
 	},
     head () {
         return {
-			title: this.info.web_name,
+			title: this.info?.base.name,
 			meta: [
-                { hid: 'keywords', name: 'keywords', content: this.info.web_seo },
-                { hid: 'description', name: 'description', content: this.info.web_describe },
+                { hid: 'keywords', name: 'keywords', content: this.info?.base.seo },
+                { hid: 'description', name: 'description', content: this.info?.base.describe },
             ]
 		}
 	},
 	computed: {
-		info(){
+		info() {
 			return this.$store.state.data
 		}
 	},
 	mounted(){
-		document.body.style.overflowY = 'hidden';
-
-		// Cover image loading is complete
-		let img = new Image()
-		img.src = this.info.cover.image
-		img.onload = () => {
-			setTimeout(() => {
-				this.image = this.info.cover.image
-				this.loading = false;
-				document.body.style.overflowY = '';
-			}, 1500)
+		if (!this.info) {
+			return
 		}
-
-		// Homepage loaded
+		this.update()
+		this.loadImage()
+		
+		// Homepage info
 		this.$store.commit('isIndex')
-
-		// Cover image init
-		const scene = document.getElementById('scene');
-		const parallaxInstance = new Parallax(scene, {
-			relativeInput: true,
-			clipRelativeInput: true,
-		})
-
-		if(this.articleList.page == this.articleList.totalPage){
-			this.loadingType = 'nomore'
-		}
+		this.$loadStatus(this.list)
 	},
-	async asyncData(context){
-		if(context.store.state.index){ // 防止重复加载 
-			return;
-		}
-		const {data} = await context.$axios.get('article')
-		return { articleList: data.status == 1 ? data.body : {}}
-	},
-	beforeRouteEnter(to,from,next){
+	beforeRouteEnter(to, from, next){
 		next(vm => {
-			vm.init()
-			vm.windowChange = vm.$debounce(vm.init, 100)
+			vm.windowChange = vm.$debounce(vm.update, 100)
 			window.onresize = () => vm.windowChange()
-			vm.isBack = true
 		})
 	},
-	beforeRouteLeave(to,from,next){
-		document.body.style.overflowY = ''
+	beforeRouteLeave(to, from, next){
 		window.onresize = null
-		this.isBack = false
-		setTimeout(() => this.isNav = false, 500)
-		document.removeEventListener('touchmove', this.on, {passive: false})
+		setTimeout(() => {
+			this.isNav = false
+			document.body.style.overflowY = ''
+		}, 800)
         next()
     },
 	methods: {
 		// Cover image init
-		init(){
+		update(){
 			this.boxH = document.documentElement.clientHeight + 'px';
 			this.boxW = document.documentElement.clientWidth + 'px';
 			this.coverLayer()
 		},
+		// Load Image
+		loadImage() {
+			const time = new Date().getTime()
+
+			// Cover image loading is complete
+			let img = new Image()
+			img.src = this.info.cover.image
+			img.onload = () => {
+				// loading 效果最少 500ms
+				let timer = 500 - new Date().getTime() + time
+				timer = timer < 0 ? 0 : timer
+				setTimeout(() => {
+					this.image = this.info.cover.image
+					this.loading = false
+				}, timer)
+			}
+
+			// Cover image init
+			const scene = document.getElementById('scene')
+			new Parallax(scene, {
+				relativeInput: true,
+				clipRelativeInput: true,
+			})
+		},
 		// Cover image box calculation
 		coverLayer(){
-			let id = document.getElementById('scene'),
-				_w = parseInt(this.boxW), 
+			let _w = parseInt(this.boxW), 
                 _h = parseInt(this.boxH), 
 				x, y, i,
 				e = (_w >= 1000 || _h >= 1000) ? 1000 : 500;
@@ -207,80 +201,68 @@ export default {
 			const style = {
                 width: _w + x + 'px',
                 height: _h + y + 'px',
-                marginLeft: - 0.5 * x + 'px',
-                marginTop: - 0.5 * y + 'px'
+                marginLeft: -0.5 * x + 'px',
+                marginTop: -0.5 * y + 'px'
 			}
 			this.layerStyle = Object.assign({}, this.layerStyle, style);
             this.coverImg()
 		},
 		// Cover image size calculation
 		coverImg(){
-			const width = parseInt(this.layerStyle.width), 
-                  height = parseInt(this.layerStyle.height), 
+			const width = parseInt(this.layerStyle.width),
+                  height = parseInt(this.layerStyle.height),
 				  ratio = 1080 / 1920,
-				  style = {};
+				  compute = height / width > ratio;
 
-			const compute = height / width > ratio;
+			const style = {
+				width: compute ? (height / ratio + 'px') : `${width}px`,
+				height: compute ? `${height}px` : (width * ratio + 'px')
+			}
+			style['left'] = (width - parseInt(style.width)) / 2 +'px'
+			style['top'] = (height - parseInt(style.height)) / 2 +'px'
 
-			style['width'] = compute ? (height / ratio + 'px') : `${width}px`;
-			style['height'] = compute ? `${height}px` : (width * ratio + 'px');
-			
-			style['left'] = (width - parseInt(style.width)) / 2 +'px';
-			style['top'] = (height - parseInt(style.height)) / 2 +'px';
-
-			this.imgStyle = Object.assign({}, this.imgStyle, style);
+			this.imgStyle = Object.assign({}, this.imgStyle, style)
+		},
+		menu(){
+			this.isNav = !this.isNav
+			document.body.style.overflowY = this.isNav ? 'hidden' : ''
 		},
 		loadMoreData(){
-			if(this.loadingType == 'nomore' || this.loadingType == 'loading') return;
-
-			this.page++;
-			this.loadingType = 'loading';
-			this.$axios.get(`article`, {
-				params: {
-					page: this.page
+			this.$loadMore('article', (res) => {
+				if (res.status === 1) {
+					this.list.data = this.list.data.concat(res.body.data)
+				} else {
+					alert(res.data)
 				}
 			})
-			.then(res => {
-				const result = res.data.body;
-				if(res.data.status == 1){
-					setTimeout(() => {
-						this.articleList.data = this.articleList.data.concat(result.data)
-
-						this.$setScroll('.bottom-loading', 'index');
-
-						this.loadingType = result.page == result.totalPage ? 'nomore' : 'more';
-					}, 1000)
-				}else{
-					this.loadingType = 'more';
-				}
-			}).catch(err => {
-				this.loadingType = 'more';
-			})
 		},
-		// Other pages
-		toPage(url){
-			this.$router.push(`/${url}`)
-		},
-		// Nav
-		menu(){
-			this.isNav = !this.isNav;
-			if(this.isNav){
-				document.addEventListener('touchmove', this.on, {passive: false})
-			}else{
-				document.removeEventListener('touchmove', this.on, {passive: false})
-			}
-			document.body.style.overflowY = this.isNav ? 'hidden' : '';
-		},
-		on(e){
-			e.preventDefault()
-		},
-		article(id){
+		toArticle(id){
 			this.$router.push(`/${id}`)
+		},
+		getDate(time) {
+			return time.month.cn + '月 ' + time.day.on + ', ' + time.year
 		}
+	},
+	async asyncData(context){
+		if (context.store.state.index) { // 防止重复加载 
+			return
+		}
+		const { data } = await context.$axios.get('article')
+		return { list: data.status == 1 ? data.body : {} }
 	}
-};
+}
 </script>
 <style lang="scss" scoped>
+.empty-data{
+	position: absolute;
+    top: 40%;
+    left: 50%;
+    font-size: 20px;
+    letter-spacing: 4px;
+	transform: translate(-50%);
+	font-weight: 600;
+    color: red;
+}
 .index{
 	position: absolute;
 	width: 100%;
@@ -296,7 +278,7 @@ export default {
 	}
 	.cover{
 		width: 100%;
-		height: 100vh;
+		height: 100%;
 		position: relative;
 		z-index: 9999;
 		overflow: hidden;
@@ -304,14 +286,13 @@ export default {
 			position: absolute;
 			top: 70px;
 			width: 100%;
-			color: #fff;
+			color: var(--color-bg-primary);
 			z-index: 99999;
 			padding: 0 40px 0 40px;
 			display: flex;
 			align-items: center;
 			justify-content: space-between;
 			.logo{
-				transition: all .3s;
 				.iconfont{
 					font-size: 36px;
 					cursor: pointer;
@@ -321,12 +302,10 @@ export default {
 				width: 100px;
 				height: 44px;
 				position: relative;
-				transition: all .3s;
 				img{
 					opacity: 1;
 					width: 100%;
 					position: absolute;
-					transition: all .3s;
 					cursor: pointer;
 					&:last-child{
 						opacity: 0;
@@ -339,7 +318,7 @@ export default {
 				line-height: 32px;
 				border-radius: 2px;
 				cursor: pointer;
-				color: #ff3600;
+				color: var(--color-red);
 				text-align: center;
 				background: rgba(255, 255, 255, 0.9);
 				span{
@@ -380,7 +359,6 @@ export default {
 					color: #fff;
 					text-decoration: none;
 					cursor: pointer;
-					transition: all .3s;
 					&:hover{
 						text-decoration: underline;
 					}
@@ -397,27 +375,27 @@ export default {
 		position: relative;
 		padding-bottom: 80px;
 		text-align: center;
-		&:after{
+		&::after{
 			content: '';
 			width: 1px;
 			height: calc(100% + 100px);
 			position: absolute;
 			top: -100px;
 			left: 50%;
-			background: #eaeaea;
+			background: var(--color-border-1);
 			z-index: 0;
 		}
 		.more{
 			margin-top: 90px;
 			display: inline-block;
 		}
-		/deep/ .bottom-loading{
+		::v-deep .bottom-loading{
 			position: relative;
 			z-index: 999;
 			.btn{
 				border-radius: 0;
 				display: inline-block;
-				border: 1px solid #eaeaea;
+				border: 1px solid var(--color-border-1);
 				border-radius: 4px;
 			}
 		}
@@ -436,8 +414,7 @@ export default {
 				z-index: 3;
 				overflow: hidden;
 				border-radius: 6px;
-				border: 1px solid #f3fafd;
-				transition: all .3s;
+				border: 1px solid var(--color-border-2);
 				img{
 					width: 100%;
 					height: 100%;
@@ -452,7 +429,7 @@ export default {
 				position: absolute;
 				top: 20px;
 				padding: 80px 100px 0 80px;
-				border: 1px solid #eaeaea;
+				border: 1px solid var(--color-border-1);
 				border-radius: 6px;
 				.time{
 					color: #999;
@@ -465,10 +442,13 @@ export default {
 					-webkit-line-clamp: 2;
 					-webkit-box-orient: vertical;
 					overflow: hidden;
+					transition: none;
 					a{
 						font-size: 24px;
 						line-height: 30px;
 						cursor: pointer;
+						color: var(--color-text-1);
+						transition: backgroundPosition 0s, color .3s;
 						&:hover{
 							background: radial-gradient(circle at 10px -7px, transparent 8px, currentColor 8px, currentColor 9px, transparent 9px) repeat-x,
 							radial-gradient(circle at 10px 27px, transparent 8px, currentColor 8px, currentColor 9px, transparent 9px) repeat-x;
@@ -484,13 +464,13 @@ export default {
 					}
 				}
 				.describe{
-					color: #666;
+					color: var(--color-text-2);
 					font-size: 14px;
 					line-height: 22px;
 					margin-top: 10px;
 					word-break: break-all;
 					display: -webkit-box;
-					-webkit-line-clamp: 3;    /* 指定行数*/
+					-webkit-line-clamp: 3;
 					-webkit-box-orient: vertical;
 					overflow: hidden; 
 				}
@@ -507,7 +487,7 @@ export default {
 						display: flex;
 						align-items: center;
 						position: relative;
-						transition: all .3s;
+						transition: none;
 						&:nth-of-type(1):hover{
 							color: #EF6D57;
 						}
@@ -521,6 +501,7 @@ export default {
 							margin-right: 4px;
 							margin-top: -4px;
 							display: inline-block;
+							transition: none;
 							&.icon-like{
 								font-size: 14px;
 								margin-top: -1px;
@@ -530,48 +511,27 @@ export default {
 								margin-top: -2px;
 							}
 						}
-						span{
-							display: inline-block;
-						}
-						&::before, &::after{
+						.hint{
 							position: absolute;
 							bottom: 100%;
 							left: 50%;
-							transition: all .3s;
-							opacity: 0;
-							visibility: hidden;
-						}
-						&::before{
-							content: '善良';
 							transform: translate(-50%, -5px);
-							background: #EF6D57;
-							white-space: nowrap;
 							color: #fff;
 							font-size: 12px;
 							border-radius: 10px;
 							padding: 5px 14px;
+							white-space: nowrap;
+							opacity: 0;
+							visibility: hidden;
+							i{
+								border: 5px solid transparent;
+								position: absolute;
+								left: 50%;
+								bottom: -10px;
+								transform: translateX(-50%);
+							}
 						}
-						&::after{
-							content: '';
-							border: 5px solid transparent;
-							border-top-color: #EF6D57;
-							transform: translate(-50%, 5px);
-						}
-						&:nth-of-type(2)::before{
-							content: '勇敢';
-							background: #50bcb6;
-						}
-						&:nth-of-type(3)::before{
-							content: '坚持';
-							background: #ffa800;
-						}
-						&:nth-of-type(2)::after{
-							border-top-color: #50bcb6;
-						}
-						&:nth-of-type(3)::after{
-							border-top-color: #ffa800;
-						}
-						&:hover::before, &:hover::after{
+						&:hover .hint{
 							opacity: 1;
 							visibility: visible;
 						}
@@ -593,61 +553,26 @@ export default {
 			}
 		}
 	}
+	.content-null {
+		text-align: center;
+		padding: 40px;
+		font-size: 16px;
+		color: #464646;
+		font-weight: 600;
+		letter-spacing: 4px;
+	}
 	.foot{
 		text-align: center;
 		a{
 			margin: 0 auto;
 			font-size: 13px;
-			color: #666;
+			color: var(--color-text-2);
 			text-decoration: none;
 			display: inline-block;
 			padding: 1px 0 2px;
 		}
 	}
-	.nav{
-		position: fixed;
-		left: 0;
-		top: -100%;
-		width: 100%;
-		height: 100%;
-		z-index: 9999;
-		display: flex;
-		justify-content: center;
-		align-items: center;	
-		background: rgba(255, 255, 255, 0.96);
-		transition: top 0.3s cubic-bezier(0.25, 0.5, 0.5, 0.9);
-		.world{
-			width: 100%;
-			position: absolute;
-			bottom: 30px;
-			display: block;
-			text-align: center;
-			color: #999;
-			span{
-				font-size: 16px;	
-			}
-		}
-		.nav-list{
-			width: 80%;
-			display: block;
-			text-align: center;
-			margin-top: -120px;
-			li{
-				margin: 0 20px 20px;
-				list-style: none;
-				display: inline-block;
-				a{
-					font-size: 24px;
-					cursor: pointer;
-					color: #666;
-					letter-spacing: 1px;
-					&:hover{
-						color: #222;
-					}
-				}
-			}
-		}
-	}
+	
 	@media screen and (max-width: 1200px){
 		.content{
 			width: 900px;
@@ -698,8 +623,8 @@ export default {
 			width: 100%;
 			.post{
 				margin-top: 60px;
-				background: #fff;
-				border-bottom: 1px solid #eaeaea;
+				background: var(--color-bg-primary);
+				border-bottom: 1px solid var(--color-border-1);
 				.img-box{
 					width: 100%;
 					height: auto;
@@ -717,7 +642,7 @@ export default {
 					padding: 40px 20px 40px;
 					margin: auto;
 					border: none;
-					background: #fff;
+					background: var(--color-bg-primary);
 					height: auto;
 					.stuff{
 						position: static;
@@ -734,7 +659,6 @@ export default {
 			}
 			.misk{
 				clip-path: none;
-				background: rgba(176, 14, 37, 0.35);
 			}
 			.post{
 				bottom: 8%;
@@ -764,16 +688,6 @@ export default {
 				}
 			}
 		}
-		.nav{
-			.nav-list{
-				li{
-					// margin: 0 12px;
-					a{
-						font-size: 18px;
-					}
-				}
-			}
-		}
 	}
 	@media screen and (max-width: 480px){
 		.cover{
@@ -798,9 +712,6 @@ export default {
 					line-height: 20px;
 				}
 			}
-		}
-		.nav .world span{
-			font-size: 14px;	
 		}
 	}
 }

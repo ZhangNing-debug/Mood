@@ -9,37 +9,29 @@
         <div class="content">
             <h1>[一日之计在于晨]</h1>
             <div class="main">
-                <template v-if="status == 1">
-                    <div class="is-active">
-                        <span class="iconfont icon-success"></span>
-                        <p>验证成功，感谢您的支持~</p>
+                <template v-if="resultInfo">
+                    <div class="is-active" :class="resultInfo.icon">
+                        <span class="iconfont" :class="'icon-'+resultInfo.icon"></span>
+                        <p class="email" v-if="resultInfo.email">{{ result.email }}</p>
+                        <p>{{ result.message }}</p>
+				        <nuxt-link to="/" v-if="resultInfo.home">去到首页</nuxt-link>
+                        <a href="/subscribe" v-if="resultInfo.reSubmit">重新提交</a>
                     </div>
                 </template>
-                <template v-else-if="status == 2">
-                    <div class="is-active error">
-                        <span class="iconfont icon-error"></span>
-                        <p>验证失效，请重新提交邮箱！</p>
-				        <nuxt-link to="/subscribe">重新提交</nuxt-link>
-                    </div>
-                </template>
-                <template v-else-if="status == 3">
-                    <div class="is-active error">
-                        <span class="iconfont icon-error"></span>
-                        <p>验证地址出错，请重新在邮箱内进入本站~</p>
-                    </div>
-                </template>
+
                 <template v-else>
-                    <h2>嘿，你今天笑了么 ~~</h2>
-                    <p>
-                        愿你雨天有伞，深夜有灯，一生温暖纯良，不舍爱与自由，与尘世的万千美好都能不期而遇。
-                        <br>
-                        欢迎订阅心情小镇的新文章通知，愿好~~
-                    </p>
+                    <h2>嘿，欢迎订阅心情小镇 ~~</h2>
+                    <p>愿你雨天有伞，深夜有灯，一生温暖纯良，不舍爱与自由，与尘世的万千美好都能不期而遇。</p>
                     <input v-model="email" type="text" placeholder="Your email address">
-                    <button type="submit" @click="submit">{{count?`${count}s后可重发`:'subscribe'}}</button>   
-                    <span class="hint" :class="hint?'show':''">{{text}}</span>
+                    <button type="submit" @click="submit">{{ count ? `${count}s后可重发` : 'subscribe' }}</button>   
+                    <span class="hint" :class="[hintClass, hintResult]">
+                        <span 
+                            class="iconfont" 
+                            :class="hintResult=='success'?'icon-success':'icon-close'"
+                        ></span>{{ text }}
+                    </span>
                 </template>
-            </div>         
+            </div>
             <div class="waves-area">
                 <svg class="waves-svg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 24 150 28" preserveAspectRatio="none" shape-rendering="auto">
                     <defs>
@@ -62,62 +54,100 @@ export default {
     name: 'subscribe',
     data(){
         return {
-            music: 'https://image.raindays.cn/Myself-Resources/music/jingxin.mp3',
+            resultList: [
+                {
+                    icon: 'success',
+                    reSubmit: false,
+                    home: true,
+                    email: true
+                },
+                {
+                    icon: 'error',
+                    reSubmit: true,
+                    home: true,
+                    email: false
+                },
+                {
+                    icon: 'error',
+                    reSubmit: true,
+                    home: true,
+                    email: true
+                }
+            ],
+            music: '',
             email: '',
             refresh: true,
-            hint: false,
-            text: '请输入正确的邮箱哦~~',
+            hintClass: '',
+            text: '',
             count: 0,
-            time: null
+            time: null,
+            hintResult: '',
+            status: null
         }
     },
     computed: {
-		info(){
+		info() {
 			return this.$store.state.data
-		}
+		},
+        resultInfo() {
+            const status = this.result.status
+            if (!status) {
+                return null
+            }
+            return [1,2,3].includes(status) ? this.resultList[status - 1] : null
+        }
     },
     head () {
         return {
-            title: `Subscribe | ${this.info.web_name}`
+            title: `Subscribe | ${this.info.base.name}`
         }
     },
     mounted(){
-        // 背景音乐
-        if(this.info.bg.bg_subscribe){
-            this.music = this.info.bg.bg_subscribe
+        if (this.info.page_music.subscribe) {
+            this.music = this.info.page_music.subscribe
             this.refresh = false
-            this.$nextTick(() => this.refresh = true )
+            this.$nextTick(() => this.refresh = true)
         }
     },
     async asyncData(context){
-        // 是否开启订阅通知功能
-        if(context.store.state.data.email_subscribe){
+        const isOpenSubscribe = context.store.state.data.administrator.subscribe
+        if (isOpenSubscribe) {
             const data = context.query
-            if(Object.keys(data).length > 1){
+            if (Object.keys(data).length > 1) {
                 const result = await context.$axios.post('subscribe_result', data)
-                return {status: result.data.status}
+                return { result: result.data.body }
             } else {
-                return {status: 0}
+                return { result: 0 }
             }
         } else {
-            context.error({ statusCode: 404, message: '页面未找到或无数据' })
+            context.error({ 
+                statusCode: 404, 
+                message: '页面未找到~~' 
+            })
         }
     },
     beforeRouteUpdate(to, from, next){
-        this.status = 0
+        this.result = {}
         next()
     },
     methods: {
+        hintError(){
+            this.hintClass = ''
+            this.hintResult = 'error'
+            window.requestAnimationFrame(() => {
+                window.requestAnimationFrame(() => {
+                    this.hintClass = 'animation'
+                })
+            })
+        },
         submit(){
-            if(this.count) return;
+            if (this.count) return
 
-            // 邮箱错误
-            if(!/^([a-zA-Z]|[0-9])(\w|\-)+@[a-zA-Z0-9]+\.([a-zA-Z]{2,4})$/.test(this.email)){
-                this.hint = true
-                this.text = '请输入正确的邮箱哦~~'
+            if (!/^([a-zA-Z]|[0-9])(\w|\-)+@[a-zA-Z0-9]+\.([a-zA-Z]{2,4})$/.test(this.email)) {
+                this.text = '请输入正确的邮箱地址哦~~'
+                this.hintError()
                 return
             }
-            this.loading = true
 
             /**
              * 发送邮箱验证状态 24小时后过期
@@ -129,19 +159,20 @@ export default {
                 active: false,
             }
             this.$axios.post('subscribe', data).then(res => {
-                if(res.data.status === 1){
+                if (res.data.status === 1) {
                     this.count = 60
                     this.time = setInterval(() => {
                         this.count--
-                        if(!this.count) clearInterval(this.time)
+                        if (!this.count) {
+                            clearInterval(this.time)
+                        }
                     }, 1000)
-                    this.text = `${this.email}，已添加成功，请到邮箱内进行激活！！`
-                }else{
-                    this.text = `${this.email}，邮箱已添加，请勿重复操作！！`
+                    this.hintResult = 'success'
+                } else {
+                    this.hintError()
                 }
+                this.text = res.data.body
                 this.hint = true
-                this.email = ''
-                this.loading = false
             })
         }
     }
@@ -149,14 +180,21 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-.container /deep/ header{
-    background: rgba(255, 255, 255, 0.13);
-    border-bottom: 1px solid rgba(246, 247, 248, 0.07);
+@keyframes shake {
+    10%, 90% { transform: translate3d(-1px, 0, 0); }
+    20%, 80% { transform: translate3d(+2px, 0, 0); }
+    30%, 70% { transform: translate3d(-4px, 0, 0); }
+    40%, 60% { transform: translate3d(+4px, 0, 0); }
+    50% { transform: translate3d(-4px, 0, 0); }
+}
+.container ::v-deep .header-content{
+    background: rgb(255 255 255 / 13%);
+    border-bottom: 1px solid rgba(246,247,248,.07);
     .icon{
         .iconfont{
-            color: #fff;
+            color: var(--color-bg-primary);
             &.logo{
-                color: #fff
+                color: var(--color-bg-primary)
             }
         }
         .logo-img img{
@@ -193,20 +231,39 @@ export default {
     h1{
         position: absolute;
         top: 120px;
-        color: #fff;
+        color: var(--color-bg-primary);
         font-size: 24px;
         letter-spacing: 10px;
     }
     .hint{
         position: absolute;
         bottom: 18px;
-        left: 64px;
-        color: red;
+        left: 50px;
         font-size: 12px;
+        color: red;
         opacity: 0;
-        transition: all .3s;
-        &.show{
+        transition: none;
+        &.animation{
+            animation: shake 800ms ease-in-out;
+        }
+        .iconfont{
+            font-size: 14px;
+            transition: none;
+            vertical-align: text-top;
+            &::before{
+                transition: none;
+            }
+            &.icon-success{
+                margin-right: 5px;
+            }
+        }
+        &.success{
             opacity: 1;
+            color: var(--color-active)
+        }
+        &.error{
+            opacity: 1;
+            color: red;
         }
     }
     .main{
@@ -224,22 +281,25 @@ export default {
         .is-active{
             text-align: center;
             .iconfont{
-                color: var(--colorActive);
+                color: var(--color-active);
                 font-size: 40px;
             }
             p{
-                color: var(--colorActive);
+                color: var(--color-active);
                 font-size: 16px;
                 margin: 10px 0 0;
             }
             &.error .iconfont, &.error p{
                 color: red;
             }
+            .email{
+                font-weight: 600;
+            }
         }
         h2{
             font-size: 22px;
             margin-bottom: 20px;
-            color: var(--colorActive)
+            color: var(--color-active)
         }
         p{
             color: #606060;
@@ -248,8 +308,8 @@ export default {
             margin-bottom: 20px;
         }
         button{
-            background: var(--colorActive);
-            color: #fff;
+            background: var(--color-active);
+            color: var(--color-bg-primary);
             border: none;
             height: 34px;
             line-height: 36px;
@@ -266,7 +326,7 @@ export default {
         }
         input{
             border-radius: 50px;
-            background: #fff;
+            background: var(--color-bg-primary);
             padding: 0 18px;
             width: 260px;
             height: 36px;
@@ -276,6 +336,9 @@ export default {
             outline: none;
         }
     }
+}
+.waves-area * {
+    transition: none;
 }
 .waves-area{
     width: 100%;
@@ -288,6 +351,7 @@ export default {
         height: 10rem;
     }
     .parallax > use{
+        transition: none;
         animation: move-forever 25s cubic-bezier(.55,.5,.45,.5) infinite;
         &:nth-child(1){
             animation-delay: -2s;
@@ -302,7 +366,7 @@ export default {
         &:nth-child(3){
             animation-delay: -4s;
             animation-duration: 13s;
-            fill: hsla(0,0%,100%,.3);
+            fill: rgb(255 255 255 / 30%);
         }
         &:nth-child(4){
             animation-delay: -5s;

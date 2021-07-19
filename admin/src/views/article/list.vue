@@ -1,140 +1,123 @@
 <template>
     <div class="article">
-        <h2 class="tit">文章列表 ({{total}})</h2>
+        <h2 class="tit">
+            文章列表 ({{ total }})
+            <span @click="newArticle" class="add"><span class="el-icon-plus"></span> 新文章</span>    
+        </h2>
         
         <el-table :data="data">
             <el-table-column label="Title">
                 <template slot-scope="scope">
-                    <p>{{scope.row.title}}</p>
+                    <p>{{ scope.row.title }}</p>
                 </template>
             </el-table-column>
             <el-table-column label="Date" width=140 class="hidden">
                 <template slot-scope="scope">
-                    <span>{{scope.row.time.time}} {{scope.row.time.month.en}} {{scope.row.time.day.on}}</span>
+                    <span>{{ $getDate(scope.row.time) }}</span>
                 </template>
             </el-table-column>
-
             <el-table-column label="options" width=100>
                 <template slot-scope="scope">
-                    <el-tooltip class="item" effect="dark" content="View Article" placement="top">
-                        <i class="el-icon-view" @click="view(scope.row.id)"></i>
-                    </el-tooltip>
-                    <el-tooltip effect="dark" content="Edit Article" placement="top">
-                        <i class="el-icon-edit" @click="edit(scope.row.id)"></i>
-                    </el-tooltip>
-                    <el-tooltip effect="dark" content="Delete" placement="top">
-                        <i class="el-icon-delete" @click="remove(scope.row)"></i>
+                    <el-tooltip 
+                        class="item" 
+                        effect="dark" 
+                        :content="item.text" 
+                        placement="top"
+                        v-for="(item, index) in options"
+                        :key="index"
+                    >
+                        <i :class="item.icon" @click="option(scope.row, index)"></i>
                     </el-tooltip>
                 </template>
             </el-table-column>
-
         </el-table>
 
-        <el-pagination
-            background
-            :page-size="10"
-            :pager-count="5"
-            :total="total"
-            :current-page="page"
-            @current-change="load"
-            layout="prev, pager, next"
-        >
-        </el-pagination>
+        <Pagination 
+            :data="total"
+            :page="page"
+            @update="load"
+        />
     </div>
 </template>
 
 <script>
-import { mapState } from 'vuex'
+import Pagination from '@/components/Pagination'
 export default {
+    components: { 
+        Pagination
+    },
     data() {
         return {
             data: [],
-            count: 10,
             total: 0,
             page: 1,
-            loading: ''
+            options: [
+                {
+                    icon: 'el-icon-view',
+                    text: 'View Article'
+                },
+                {
+                    icon: 'el-icon-edit',
+                    text: 'Edit Article'
+                },
+                {
+                    icon: 'el-icon-delete',
+                    text: 'Delete'
+                }
+            ]
         }
     },
     created(){
-        this.total = this.$data.articleQty
-        this.load();
-    },
-    mounted(){
-        document.querySelector('.content').style.overflow = 'hidden'
-    },
-    destroyed(){
-        document.querySelector('.content').style.overflow = 'auto'
-    },
-    computed: {
-        ...mapState(['$data'])
+        this.load()
     },
     methods: {
+        newArticle() {
+            this.$router.push('/article/info')
+        },
         load(page){
-            /**
-             * vuex 存在当前页数据
-             */
-            const article = this.$store.state.article;
-            if(article[page]){
-                this.data = article[page];
-                return
-            }
-
-            this.loading = this.$loading({target: '.container'})
-
-            this.$http.get('/article', {
-                params: {page}
+            this.$request(() => this.$http.get('/article', {
+                params: { page }
             }).then(res => {
-                setTimeout(() => {
-                    const data = res.data.body;
-                    const item = ['data', 'total', 'page']
-
-                    item.map(i => this[i] = data[i])
-                    /**
-                     * 添加数据到vuex，请求优化
-                     */
-                    this.$store.commit('setCache', {
-                        type: 'article',
-                        page: page || 1,
-                        data: this.data,
-                        total: this.total
+                ['data', 'total', 'page'].map(i => this[i] = res.data.body[i])
+            }))
+        },
+        option(data, index) {
+            const o = {
+                0: () => {
+                    window.open(`${window.location.origin}/${data.id}`)
+                },
+                1: () => {
+                    this.$router.push({ 
+                        name: 'info', 
+                        query: { 
+                            id: data.id 
+                        }
                     })
-                    this.loading.close()
-                }, 500)
-            })
-        },
-        edit(id){
-            this.$router.push({
-                name: 'info',
-                query: { id: id }
-            })
-        },
-        // 新窗口打开文章
-        view(id){
-            window.open(`${window.location.origin}/${id}`)
-        },
-        remove(item){
-            this.$confirm('删除该文章, 是否继续?', '提示', {
-                confirmButtonText: '确定',
-                cancelButtonText: '取消',
-                type: 'warning'
-            }).then(() => {
-                this.$http.delete(`article/${item._id}`).then(res => {
-                    setTimeout(() => {
-                        this.$store.commit('resetCache', 'article')
-                        this.load()
+                },
+                2: () => {
+                    this.$confirm('删除该文章, 是否继续?', '提示', {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        type: 'warning'
+                    }).then(() => {
+                        this.$request(() => this.$http.delete(`article/${data._id}`)
+                            .then(res => {
+                                if (res.data.status === 1) {
+                                    this.load()
+                                    this.$message.success('删除成功！')
+                                } else {
+                                    this.$message.error(res.data.body.message)
+                                }
+                            }))
+                    }).catch(() => {
                         this.$message({
-                            type: 'success',
-                            message: '删除成功!'
+                            type: 'info',
+                            message: '已取消删除'
                         })
-                        this.$infoUpdate() // 刷新状态
-                    }, 1000)
-                })
-            }).catch(() => {
-                this.$message({
-                    type: 'info',
-                    message: '已取消删除'
-                });
-            });
+                    })
+                }
+            }
+            o[index]()
         }
     }
 }
@@ -187,7 +170,7 @@ export default {
             color: red;
         }
     }
-    /deep/ 
+    ::v-deep 
         .el-table__body-wrapper{
             height: calc(100% - 80px);
             overflow: auto;
@@ -212,7 +195,7 @@ export default {
             margin: 10px 0 20px;
         }
     }
-    /deep/ .el-table__body-wrapper{
+    ::v-deep .el-table__body-wrapper{
         height: calc(100vh - 212px) !important;
     }
     .el-table__header, .el-table__body{

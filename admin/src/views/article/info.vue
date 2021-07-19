@@ -3,94 +3,55 @@
 
         <section>
             <h2 class="tit">无人问津的心情，在黑纸白字间游荡！</h2>
-            <el-input
-                placeholder="标题"
-                v-model="data.title"
-                clearable>
-            </el-input>
+            <el-input placeholder="标题" v-model="data.title" clearable></el-input>
         </section>
 
         <mavon-editor 
-            :ishljs="true" 
-            @change="change" 
             v-model="data.content" 
             :subfield="false"
-            @imgAdd="$imgAdd"
+            @imgAdd="uploads"
             @imgDel="$imgDel"
-            ref="md" 
+            ref="markdown" 
         />
 
         <section>
-            <date 
-                @getDate="getDate" 
-                :originalDate="data.time" 
-                v-if="isReset"
-            ></date>
-            <el-input
-                placeholder="文章摘要"
-                v-model="data.describe"
-                prefix-icon="el-icon-document"
-                clearable>
-            </el-input>
+            <Date @getDate="getDate" :originalDate="data.time" />
 
-            <div class="upload-box" v-if="!uploadToggle">
+            <el-input placeholder="文章摘要" v-model="data.describe" prefix-icon="el-icon-document" clearable></el-input>
+
+            <div class="upload-box" v-if="!isUpload">
                 <el-upload
-                    class="upload-demo"
-                    :auto-upload="false"
+                    v-for="(item, index) in ['music', 'image']"
+                    :key="index"
                     :show-file-list="false"
-                    :on-change="musicUpload"
-                    action=""
+                    :http-request="uploadChange"
+                    :name="item"
+                    class="upload-item"
+                    ref="upload"
+                    action
                     drag
                 >
-                    <template v-if="data.music && data.music.url">
+                    <template v-if="item == 'music'">
                         <i class="el-icon-headset"></i>
-                        <div class="el-upload__text">{{data['music'].name}}</div>
+                        <div class="el-upload__text">{{ musicName }}</div>
                     </template>
                     <template v-else>
-                        <i class="el-icon-headset"></i>
-                        <div class="el-upload__text">背景音乐</div>
+                        <img v-if="data.image.url" :src="data.image.url">
+                        <template v-else>
+                            <i class="el-icon-picture-outline-round"></i>
+                            <div class="el-upload__text">封面图片 (680*440)</div>
+                        </template>
                     </template>
                 </el-upload>
-                <el-upload
-                    class="upload-demo"
-                    :auto-upload="false"
-                    :show-file-list="false"
-                    :on-change="imgUpload"
-                    action=""
-                    drag
-                >
-                    <img v-if="data.image && data.image.url" :src="data.image.url">
-                    <i class="el-icon-picture-outline-round"></i>
-                    <div class="el-upload__text">封面图片 (680*440)</div>
-                </el-upload>
             </div>
+
             <template v-else>
-                <el-input
-                    placeholder="音乐地址"
-                    v-model="data.music.url"
-                    prefix-icon="el-icon-headset"
-                    clearable>
-                </el-input>
-                <el-input
-                    placeholder="封面图片"
-                    prefix-icon="el-icon-picture-outline-round"
-                    v-model="data.image.url"
-                    clearable>
-                </el-input>
+                <el-input placeholder="音乐地址" v-model="data.music.url" prefix-icon="el-icon-headset" clearable></el-input>
+                <el-input placeholder="封面图片" v-model="data.image.url" prefix-icon="el-icon-picture-outline-round" clearable></el-input>
             </template>
 
-            <el-switch
-                v-model="uploadToggle"
-                active-text="输入链接"
-                inactive-text="文件上传"
-            >
-            </el-switch>
-
-            <el-switch
-                v-model="data.hide"
-                inactive-text="发布文章"
-                active-text="隐藏文章">
-            </el-switch>
+            <el-switch v-model="isUpload" active-text="文件上传" inactive-text="输入链接"></el-switch>
+            <el-switch v-model="data.hide" inactive-text="发布文章" active-text="隐藏文章"></el-switch>
         </section>
 
         <el-button type="primary" class="submit" @click="submit">SUBMIT</el-button>
@@ -98,17 +59,17 @@
 </template>
 
 <script>
-import date from '@/components/date'
-import { mapState } from 'vuex'
+import Date from '@/components/Date'
 import { mavonEditor } from 'mavon-editor'
 import 'mavon-editor/dist/css/index.css'
 export default {
     components: {
-        date,
+        Date,
         mavonEditor
     },
     data() {
         return {
+            id: '',                     // 当前文章id（编辑）
             data: {
                 title: '',              // 标题
                 content: '',            // 内容
@@ -119,114 +80,125 @@ export default {
                 music: {},              // 音乐
                 hide: false,            // 隐藏
             },
-            isReset: true,
-            id: '',                     // 当前文章id（编辑）
+            markdownImage: [],          // 编辑器的图片集合
+            isUpload: false,            // 是否上传 取反
 
-            upload: {},
-            uploadToggle: false,
-
-            fullscreenLoading: false,
-            loading: ''
+            fullscreenLoading: false
         }
     },
     created(){
-        this.id = this.$route.query.id;
-        if(this.id) this.loadData(this.id);
-    },
-    watch: {
-        'data.image.url': {
-            handler(val) {
-                if(!val){
-                    delete this.upload['image']
-                }
-            }
-        },
-        'data.music.url': {
-            handler(val) {
-                if(!val){
-                    delete this.upload['music']
-                }
-            }
-        }
+        this.id = this.$route.query.id
+        this.id && this.loadData(this.id)
     },
     computed: {
-        ...mapState(['$data'])
+        uploadType() {
+            return this.$store.state.$data.info.base.upload_type
+        },
+        musicName() {
+            return this.data['music'].url ? this.data['music'].name || this.data['music'].url : '背景音乐'
+        }
     },
     methods: {
-        musicUpload(file){
-            this.uploads('music', file)
+        // 获取当前文章的数据
+        loadData(id){
+            this.$request(() => this.$http.get(`article/${id}`)
+                .then(res => {
+                    if (res.data.status === 1) {
+                        this.data = res.data.body
+                    } else {
+                        this.$message.error(res.data.body.message)
+                    }
+                })
+            )
         },
-        imgUpload(file){
-            this.uploads('image', file)
-        },
-        // 保存临时文件
-        uploads(type, file){
-            const name = type == 'music' ? 'audio' : 'image';
-            if (!file.raw.type.includes(name)) {
+        uploadChange(data) {
+            const list = ['audio', 'image']
+            const name = data.filename == 'music' ? 'audio' : data.filename
+            const index = list.indexOf(data.file.type.split('/')[0])
+
+            if (name != list[index]) {
                 this.$message.error(`请选择${name}格式的文件!`)
                 return
             }
-            const formData = new FormData();
-            formData.append('file', file.raw);        
-            formData.append('type', this.$data.info.upload_type);    
-
-            this.$set(this.data, type, {
-                url: URL.createObjectURL(file.raw),
-                name: file.name
-            })
-
-            this.$set(this.upload, type, {
-                url: URL.createObjectURL(file.raw),
-                name: file.name,
-                formData
-            })
+            this.uploads(data.filename, data.file, true)
         },
-        $imgAdd(pos, $file){
-           var formdata = new FormData();
-           formdata.append('file', $file);
-           formdata.append('type', this.$data.info.upload_type);
-
-           this.$http.post('/upload', formdata).then(res => {           
-               this.$refs.md.$img2Url(pos, res.data.url);
+        // 保存临时文件
+        uploads(type, file, is) {
+            const form = this.$formData({
+                'file': file,
+                'type': this.uploadType
             })
-        },
-        $imgDel(pos){
-            const data = {
-                url: pos[0],
-                type: this.$data.info.upload_type
+            if (is) {
+                this.$set(this.data, type, {
+                    url: URL.createObjectURL(file),
+                    name: file.name,
+                    form
+                })
+            } else {
+                this.markdownImage.push({   // 内容区图片
+                    index: type,
+                    form
+                })
             }
-            this.$http.post('/delete_file', data)
         },
-        change(value, render){
-            this.data.contentHtml = render;     // 解析的html
-            this.data.content = value;          // 输入的内容
-            this.data.words = value.length;     // 字数
+        $imgDel(index){
+            this.markdownImage.splice(index, 1)
         },
         async submit(){
+            const markdown = this.$refs.markdown
+            this.data.content = markdown.d_value    // 内容
+
             const map = {
                 'title': '请输入标题',
                 'content': '请输入内容',
-                'time': '请选择时间',
+                'time': '请选择时间'
             }
-            for(let i in map){
-                if(!this.data[i]){
-                    this.$message.error(`${map[i]}`);
-                    return;
+            for (let i in map) {
+                if (!this.data[i]) {
+                    this.$message.error(`${map[i]}`)
+                    return
                 }
             }
 
-            this.fullscreenLoading = true;
-            
-            // 上传文件
-            if(!this.uploadToggle){
-                for(let i in this.upload){
-                    const result = await this.$http.post('/upload', this.upload[i].formData);
-                    if(result.data.status == 100){
-                        this.data[i].url = result.data.url;
-                    }else{
-                        // 错误
-                        this.$message.error('图片上传失败, 请检查网络!');
-                        this.fullscreenLoading = false;
+            this.fullscreenLoading = true
+
+            // 上传内容区图片
+            const conImgList = this.markdownImage
+            for (let i = 0; i< conImgList.length; i++) {
+                const result = await this.$http.post('/upload', conImgList[i]['form'])
+                const body = result.data.body
+                if (result.data.status == 1) {
+                    markdown.$img2Url(i + 1, body.url)
+                } else {
+                    this.fullscreenLoading = false
+                    this.$message.error(body.message)
+                    break
+                }
+            }
+
+            const textarea = {
+                'contentHtml': markdown.d_render,
+                'content': markdown.d_value,
+                'words': markdown.d_value.length
+            }
+            for (let i in textarea) {
+                this.data[i] = textarea[i]
+            }
+
+            // 上传背景音乐 & 封面图
+            if (!this.isUpload) {
+                for (let i of ['image', 'music']) {
+                    const data = this.data[i]
+                    if (data.form) {
+                        const res = await this.$http.post('/upload', data.form)
+                        if (res.data.status == 1) {
+                            data.url = res.data.body.url
+                            delete data.form
+                        } else {
+                            this.$message.error(res.data.body.message)
+                            this.fullscreenLoading = false
+                            return
+                        }
                     }
                 }
             }
@@ -238,44 +210,21 @@ export default {
             const type = this.id ? `article/${this.data._id}` : 'article';
             const mesg = this.id ? '更新' : '发表';
 
-            // 网站和管理员的信息
-            const email = this.$data.info['email']
-            email.web_name = this.$data.info['web_name']
-            email.web_address = this.$data.info['address']
-
-            this.$http.post(type, {data: this.data, email}).then(res => {
-                setTimeout(() => {
-                    if(res.data.status === 1){
-                        this.$message({
-                            message: `${mesg}成功`,
-                            type: 'success'
-                        });
+            this.$http.post(type, { data: this.data })
+                .then(res => {
+                    if (res.data.status === 1) {
+                        this.$message.success(`${mesg}成功`)
                         this.$router.push('/article')
-                        this.$infoUpdate() // 刷新状态
-                    }else{
+                        this.$infoUpdate()
+                    } else {
                         this.$message.error(`${mesg}失败，请检查网络问题!`);
                     }
-                    this.fullscreenLoading = false;
-                }, 500)
-            })
+                    this.fullscreenLoading = false
+                })
         },
         // 获取时间
         getDate(val){
-            this.data.time = val;
-        },
-        // 获取当前文章的数据
-        async loadData(id){
-
-            this.loading = this.$loading({target: '.container'})
-
-            const res = await this.$http.get(`article/${id}`)
-
-            setTimeout(() => {
-                this.data = res.data.body;
-                this.isReset = false;
-                this.$nextTick(() => { this.isReset = true; })
-                this.loading.close()
-            }, 500)
+            this.data.time = val
         },
     }
 }
@@ -304,11 +253,11 @@ section{
 .upload-box{
     display: flex;
     margin: 10px -7px 6px;
-    .upload-demo{
+    .upload-item{
         width: 50%;
         max-width: 360px;
         margin: 0 7px;
-        /deep/ .el-upload{
+        ::v-deep .el-upload{
             width: 100%;
             .el-upload-dragger{
                 width: 100%;
@@ -338,7 +287,7 @@ section{
         width: 100%;
     }
 }
-/deep/ .el-switch__label{
+::v-deep .el-switch__label{
     color: #98999c;
     font-weight: 400;
     &.is-active{
@@ -361,7 +310,7 @@ section{
         line-height: 36px;
         padding: 0;
     }
-    .upload-box .upload-demo /deep/ .el-upload .el-upload-dragger{
+    .upload-box .upload-item ::v-deep .el-upload .el-upload-dragger{
         height: 130px;
         .el-icon-picture-outline-round, .el-icon-headset{
             font-size: 36px;

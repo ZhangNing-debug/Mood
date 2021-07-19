@@ -1,6 +1,7 @@
 export const state = () => ({
     data: {},
-    index: false
+    index: false,
+    status: 'more'
 })
 
 export const mutations = {
@@ -9,13 +10,15 @@ export const mutations = {
     },
     isIndex (state) {
         state.index = true
+    },
+    setStatus (state, data) {
+        state.status = data
     }
 }
 
 export const actions = {
-    // 默认加载信息
     async nuxtServerInit({ commit }, { req }) {
         const res = await this.$axios.get('info')
-        commit('data', res.data.body);
+        commit('data', res.data.body)
     },
 }

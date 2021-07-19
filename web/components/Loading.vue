@@ -12,7 +12,7 @@
     width: 100%;
     height: 100%;
     z-index: 999999;
-    background: #fff;
+    background: var(--color-bg-primary);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -22,7 +22,7 @@
         display: block;
         margin-top: -20px;
         border-radius: 50%;
-        background: #808080;
+        background: var(--color-text-6);
         animation: Loading 2s both infinite;
     }
 }

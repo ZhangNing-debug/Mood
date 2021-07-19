@@ -3,85 +3,58 @@
         <Header 
             v-if="refresh" 
             :music="music" 
-            title="好好学习, 天天向上!"
-        ></Header>
-
+            :sticky="true" 
+            title="予给你一封信"
+        />
         <section class="content">
-            <div v-if="!data.data || data.data.length == 0">
+            <div v-if="!list.data || list.data.length == 0" class="data-null">
                 空无一物，就像你我一样。
             </div>
             <template v-else>
-                <div v-for="(item, index) in data.data" :key="index" class="item">
+                <div v-for="(item, index) in list.data" :key="index" class="item">
                     <div class="text" v-html="item.contentHtml"></div>
-                    <div class="time">{{item.time}}</div>
+                    <div class="time">{{ item.time }}</div>
                 </div>
-                <LoadMore :loadingType="loadingType"></LoadMore>
+                <LoadMore />
             </template>
         </section>
     </div>
 </template>
 
 <script>
+import scrollMixin from '~/mixin/scroll.js'
 export default {
+    mixins: [scrollMixin],
     data(){
         return{
-            music: 'https://image.raindays.cn/Myself-Resources/music/jingxin.mp3',
-            refresh: true,
-			loadingType: 'more'
+            music: '',
+            refresh: true
         }
     },
     head () {
         return {
-            title: `一封信 | ${this.info.web_name}`
+            title: `Hello ${this.info.base.name}`
         }
     },
     mounted(){
-        // 背景音乐
-        if(this.info.bg.bg_letter){
-            this.music = this.info.bg.bg_letter
+        if (this.info.page_music.letter) {
+            this.music = this.info.page_music.letter
             this.refresh = false
-            this.$nextTick(() => this.refresh = true )
+            this.$nextTick(() => this.refresh = true)
         }
-
-        if(this.data.totalPage > 1){
-            window.addEventListener('scroll', this.load)
-        }
-
-        if(this.data.page == this.data.totalPage){
-            this.loadingType = 'nomore'
-        }
-    },
-    destroyed(){
-        this.$load('none')
-        window.removeEventListener('scroll', this.load)
+        this.$loadStatus(this.list)
+        this.$watch('scroll_isBottom', (val) => {
+            val && this.load()
+        }, { immediate: true })
     },
     methods: {
-        load(){
-            const data = this.$load('envelope')
-
-            if(typeof data === 'object'){
-                this.loadingType = 'loading'
-            }
-
-            data && data.then(res => {
-                if(res.status === 1){
-                    const result = res.body;
-                    this.data.data = this.data.data.concat(result.data)
-
-                    if(result.page == result.totalPage){
-                        this.loadingType = 'nomore';
-                        window.removeEventListener('scroll', this.load)
-                    }else{
-                        this.loadingType = 'more';
-                    }
-
-                    // 设置滚动条位置
-                    this.$setScroll('.bottom-loading');
-                }else{
-                    this.loadingType = 'more';
+        load() {
+            this.$loadMore('envelope', (res) => {
+                if (res.status === 1) {
+                    this.list.data = this.list.data.concat(res.body.data)
+                } else {
+                    alert(JSON.stringify(res))
                 }
-            }).catch(err => {
-                this.loadingType = 'nomore';
             })
         }
     },
@@ -91,15 +64,17 @@ export default {
 		}
     },
     async asyncData(context){
-        let {data} = await context.$axios.get('envelope')
-        return {data: data.status === 1 ? data.body : ''}
-    },
+        let { data } = await context.$axios.get('envelope')
+        return { list: data.status === 1 ? data.body : {} }
+    }
 }
 </script>
-
 <style lang="scss" scoped>
-header{
-    position: fixed;
+.data-null{
+    text-align: center;
+    font-size: 16px;
+    letter-spacing: 4px;
+    color: #313131;
 }
 .container{
     min-height: 100vh;
@@ -111,7 +86,7 @@ header{
     padding: 90px 0 50px;
     .item{
         margin-bottom: 30px;
-        background: #fff;
+        background: var(--color-bg-primary);
         padding: 30px 30px 20px;
         border-radius: 6px;
         transition: all .3s;
@@ -120,7 +95,7 @@ header{
         }
         .text{
             color: #333;
-            /deep/ .hljs-right{
+            ::v-deep .hljs-right{
                 text-align: right;
             }
         }
@@ -128,7 +103,7 @@ header{
             font-size: 13px;
             text-align: right;
             margin-top: 14px;
-            color: #888;
+            color: var(--color-text-3);
         }
     }
 }

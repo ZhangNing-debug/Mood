@@ -10,6 +10,7 @@
 
 <script>
 export default {
+    name: 'Date',
     props: ['originalDate'],
     data(){
         return{
@@ -19,11 +20,8 @@ export default {
     watch: {
         value(val){
             this.$emit('getDate', val)
-        }
-    },
-    mounted(){
-        // 默认时间
-        if(this.originalDate && JSON.stringify(this.originalDate) != '{}'){
+        },
+        originalDate(val) {
             this.value = this.originalDate
         }
     }

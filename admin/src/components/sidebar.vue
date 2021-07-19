@@ -3,9 +3,9 @@
         <div class="sidebar" :class="{hide:scale, show:show}">
             <div class="info">
                 <div class="photo">
-                    <img :src="$info.avatar || ''">
+                    <img v-if="$info" :src="$info.base.admin_avatar || ''">
                 </div>
-                <p class="name">{{$info.name}}</p>
+                <p class="name" v-if="$info">{{ $info.base.admin_name }}</p>
             </div>
             <el-menu 
                 :default-active="activeIndex" 
@@ -19,7 +19,7 @@
                     @click="toPage(item.title)"
                 >
                     <i :class="item.icon"></i>
-                    <span>{{item.title}}</span>
+                    <span>{{ item.title }}</span>
                     <span v-if="item.title=='Comment' && $data.unread" class="unread">{{$data.unread}}</span>
                 </el-menu-item>
             </el-menu> 
@@ -47,23 +47,13 @@ export default {
                 },
                 {
                     icon: 'el-icon-heavy-rain',
-                    title: 'Small mood',
+                    title: 'Little mood',
                     path: '/article',
-                },
-                {
-                    icon: 'el-icon-light-rain',
-                    title: 'New mood',
-                    path: '/article/info',
                 },
                 {
                     icon: 'el-icon-lightning',
                     title: 'A letter',
                     path: '/envelope',
-                },
-                {
-                    icon: 'el-icon-cloudy-and-sunny',
-                    title: 'New letter',
-                    path: '/envelope/info',
                 },
                 {
                     icon: 'el-icon-sunrise-1',
@@ -109,7 +99,7 @@ export default {
     computed: {
         ...mapState(['$data']),
         $info(){
-            return Object.keys(this.$data).length > 0 ? this.$data.info : {}
+            return this.$data ? this.$data.info : {}
         }
     },
     methods: {

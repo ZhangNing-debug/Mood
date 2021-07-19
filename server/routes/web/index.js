@@ -2,55 +2,33 @@ module.exports = (app, plugin, model) => {
     const express = require('express');
     const router = express.Router();
 
-    let {Info, Comment, Counter, Article, Envelope, Myself, Subscribe} = model
-    let {time, email, dateFormat, requestResult} = plugin
+    let { Info, Comment, Counter, Article, Envelope, Myself, Subscribe } = model
+    let { time, Email, DateFormat, RequestResult } = plugin
 
     router.get('/info', async (req, res) => {
         const info = await Info.findOne()
-
-        let data = null;
-
-        if(info){
-            data = {
-                cover: info.cover,
-                avatar: info.avatar,
-                web_seo: info.web_seo,
-                web_name: info.web_name,
-                web_describe: info.web_describe,
-                bg: info.bg,
-                
-                email: info.email.address,
-                email_name: info.email.name,
-                email_comment: info.email.comment,
-                admin_mark: info.email.mark,
-                
-                email_subscribe: info.email.subscribe,
-            }
-        }
-
-        res.send(requestResult(data))
+        res.send(RequestResult(1, info))
     })
 
     // All articles
     router.get('/article', async (req, res) => {
-        const page = req.query.page || 1;
-
+        const page = req.query.page || 1
         const result = await Promise.all([
-            Article.countDocuments(),
+            Article.find({hide:false}).countDocuments(),
             Article.find({hide:false}).sort({time:-1}).limit(Number(10)).skip(Number(10)*(page-1))
         ])
 
-        result[1].forEach(item => item._doc['time'] = dateFormat(item.time))
+        result[1].forEach(item => item._doc['time'] = DateFormat(item.time))
 
         // 列表页 分组
-        if(req.query.from){ 
+        if (req.query.from) {
             result[1] = result[1].reduce((total, item)=>{
-                const [ , year, date] = /(\d+)\/(\d+)/.exec(item.time.date);                
-                total['_'+year] = total['_'+year] || {};
-                total['_'+year][date] = total['_'+year][date] || [];
-                total['_'+year][date].push(item);
+                const [ , year, date] = /(\d+)\/(\d+)/.exec(item.time.date)
+                total['_'+year] = total['_'+year] || {}
+                total['_'+year][date] = total['_'+year][date] || []
+                total['_'+year][date].push(item)
                 return total
-            }, {})         
+            }, {})
         }
 
         /**
@@ -64,7 +42,7 @@ module.exports = (app, plugin, model) => {
             totalPage: Math.ceil(result[0] / 10),
         }
 
-        res.send(requestResult(data))
+        res.send(RequestResult(1, data))
     })
 
     // Get article
@@ -77,12 +55,11 @@ module.exports = (app, plugin, model) => {
         }, {
             new: true
         })
-
-        if(data){
-            data._doc['time'] = dateFormat(data.time)
-            res.send(requestResult(data))
-        }else{
-            res.send(requestResult())
+        if (data) {
+            data._doc['time'] = DateFormat(data.time)
+            res.send(RequestResult(1, data))
+        } else {
+            res.send(RequestResult())
         }
     })
 
@@ -93,7 +70,7 @@ module.exports = (app, plugin, model) => {
 
         // 一级评论和子级评论格式转化
         const data = result.reduce((total, item, index, arr) => {    
-            item._doc['time'] = dateFormat(item.time)
+            item._doc['time'] = DateFormat(item.time)
             if(item.type === 1){
                 item._doc['child'] = []
                 total.push(item)
@@ -109,7 +86,7 @@ module.exports = (app, plugin, model) => {
         
         const total = result.length;
         
-        res.send(requestResult({data,total}))
+        res.send(RequestResult(1, { data, total }))
     })
     
     // Post a comment
@@ -122,9 +99,9 @@ module.exports = (app, plugin, model) => {
             new: true
         })
 
-        if(commentCount){
+        if (commentCount) {
             req.body.data.id = commentCount.count;
-        }else{
+        } else {
             /**
              * 第一次发表评论
              * 创建自增id字段
@@ -136,33 +113,30 @@ module.exports = (app, plugin, model) => {
             const count = await Counter.create(data)
             req.body.data.id = count.count;
         }
-
+        
         /**
          * 返回评论数据，页面展示
          */
         const result = await Comment.create(req.body.data)
-        if(result.type === 1){
+        if (result.type === 1) {
             result._doc['child'] = [];
         }
-        result._doc['time'] = dateFormat(result.time)
+        result._doc['time'] = DateFormat(result.time)
 
-        res.send(requestResult(result))
-
+        res.send(RequestResult(1, result))
+        
         /**
-         * 发送邮件通知
+         * 默默de发送邮件通知
          */
-        if(req.body.is_email){
+        if (req.body.isEmail) {
             const info = await Info.findOne()
             const data = {
                 title: req.body.title,
                 url: req.body.url,
-                name: req.body.data.reply_name || info.email.name,
-                email: req.body.data.reply_email || info.email.address
+                name: req.body.data.reply_name || info.administrator.name,
+                email: req.body.data.reply_email || info.administrator.email
             }
-
-            // 发送邮件
-            const email_info = Object.assign({}, info['email'], {web_name: info['web_name']})
-            email(3, data, email_info)            
+            Email(3, data, info)            
         }
     })
 
@@ -186,9 +160,8 @@ module.exports = (app, plugin, model) => {
             Envelope.find().sort({time:-1}).limit(Number(10)).skip(Number(10)*(page-1))
         ])
         
-        result[1].forEach(item => {
-            item._doc['time'] = time(item.time)
-        })
+        result[1].forEach(item => item._doc['time'] = time(item.time))
+
         /**
          * 数据
          * 当前页
@@ -199,54 +172,54 @@ module.exports = (app, plugin, model) => {
             page: Number(page),
             totalPage: Math.ceil(result[0] / 10),
         }
-        res.send(requestResult(data))
+        res.send(RequestResult(1, data))
     })
 
     router.get('/myself', async (req, res) => {
         const result = await Myself.findOne()
-        res.send(requestResult(result))
+        res.send(RequestResult(1, result))
     })
 
     // subscribe
     router.post('/subscribe', async (req, res) => {
         const result = await Subscribe.findOne({email: req.body.email})
 
-        const send = {
-            email: req.body.email,
-            url: `${req.headers.origin}/subscribe?code=${req.body.code}&email=${req.body.email}`
-        }
-
         // 添加验证 or 重新验证
-        if(!result || !result.active){
-            get_data(Object.prototype.toString.call(result) === "[object Null]")
-        } else {
-            // 已验证
-            res.send(requestResult())
-        }
-
-        async function get_data(type){
-            let data = '';
-            if(type){
-                data = await Promise.all([
-                    Subscribe.create(req.body),
-                    Info.findOne()
-                ])
-            } else {
-                data = await Promise.all([
-                    Subscribe.findOneAndUpdate({
-                        email: req.body.email
-                    }, req.body, {
-                        new: true
-                    }),
-                    Info.findOne()
-                ])
+        if (!result || !result.active) {
+            const type = Object.prototype.toString.call(result) === "[object Null]"
+            const send = {
+                email: req.body.email,
+                url: `${req.headers.origin}/subscribe?code=${req.body.code}&email=${req.body.email}`
             }
-            res.send(requestResult(data[0]))
-
-            const email_info = Object.assign({}, data[1]['email'], {web_name: data[1]['web_name']})
-            email(1, send, email_info) // 发送邮件验证
+            get_data(type, req.body, res, send)
+        } else {
+            res.send(RequestResult(1, '邮箱已验证成功，请勿重复操作！'))   // 已验证
         }
     })
+
+    async function get_data(type, data, res, send){
+        let result = '';
+        if (type) {
+            result = await Promise.all([
+                Subscribe.create(data),
+                Info.findOne()
+            ])
+        } else {
+            result = await Promise.all([
+                Subscribe.findOneAndUpdate({
+                    email: data.email
+                }, data, {
+                    new: true
+                }),
+                Info.findOne()
+            ])
+        }
+        // 发送邮件验证
+        Email(1, send, result[1], (status, data) => { 
+            const params = status === 1 ? [status, data] : [data]
+            res.send(RequestResult(...params))
+        })
+    }
 
     // subscribe result
     router.post('/subscribe_result', async (req, res) => {
@@ -254,38 +227,50 @@ module.exports = (app, plugin, model) => {
         const time = new Date().setDate(new Date().getDate())
 
         // 邮箱错误
-        if(!result){
-            res.send({
+        if (!result) {
+            subscribeResult({
                 status: 3,
-                message: '邮箱错误',
-            })
-            return;
+                email: req.body.email,
+                message: '验证邮箱与URL不匹配，请重新在邮箱内点击验证链接，或再次提交邮箱~'
+            }, res)
+            return
         }
 
-        // 开始验证
-        let data = {message:'success'}
-        if(!result.active){
-            if(req.body.code == result.code && time < result.time){
-                data = await Subscribe.findOneAndUpdate({
+        if (!result.active) {
+            if (req.body.code == result.code && time < result.time) {
+                const findResult = await Subscribe.findOneAndUpdate({
                     email: req.body.email
                 }, {
                     $set: { active: true }
                 }, {
                     multi: true
                 }, (err, doc) => {
-                    return doc;
+                    return doc
                 } )
-                // 验证成功
-                res.send(requestResult(data))
+                subscribeResult(findResult, res, 1)
             } else {
-                // 验证失败
-                res.send(requestResult())
+                subscribeResult({
+                    status: 2,
+                    email: req.body.email,
+                    message: '验证失效，请重新提交邮箱！'
+                }, res)
             }
         } else {
-            // 已验证
-            res.send(requestResult(data))
+            subscribeResult(result, res, 1)
         }
     })
 
+    function subscribeResult(data, res, status) {
+        if (status) {
+            const result = {
+                ...data._doc, 
+                status: 1, 
+                message: '验证成功，感谢您的支持~'
+            }
+            res.send(RequestResult(1, result))
+        } else {
+            res.send(RequestResult(2, data))
+        }
+    }
     app.use('/web/api', router)
 }

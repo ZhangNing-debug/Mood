@@ -4,6 +4,14 @@
 	</div>
 </template>
 
+<script>
+export default {
+    created() {
+        this.$infoUpdate()
+    }	
+}
+</script>
+
 <style lang="scss">
 * {
 	margin: 0;
@@ -34,15 +42,41 @@ body{
 	display: flex;	
 }
 h2.tit{
-    border-left: 2px solid #0084ff;
+    border-left: 2px solid var(--color-main);
     padding-left: 16px;
     font-size: 18px;
     font-weight: 400;
     margin: 20px 0 30px;
-    color: #0084ff;
+	color: var(--color-main);
+	display: flex;
+    align-items: center;
+    justify-content: space-between;
+	.add{
+		height: 30px;
+		line-height: 32px;
+		font-size: 13px;
+		border-radius: 4px;
+		padding: 0 12px;
+		color: var(--color-main);
+		cursor: pointer;
+		background: #e8f4ff;
+		cursor: pointer;
+		&:hover{
+			color: #fff;
+			background: var(--color-main);
+		}
+		.el-icon-plus{
+			font-size: 12px;
+			font-weight: 800;
+		}
+	}
 }
 .markdown-body *{
 	list-style: initial;
+}
+:root{
+	--color-main: #0084ff;
+	--color-main-hover: #0279e9;
 }
 @media screen and (max-width: 600px) {
 	#app{

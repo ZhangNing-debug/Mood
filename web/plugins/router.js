@@ -1,3 +1,4 @@
+import Vue from 'vue'
 export default ({ app: { router }, store }) => {
     // 顶部loading
 	router.afterEach((to, from) => {
@@ -7,6 +8,13 @@ export default ({ app: { router }, store }) => {
 	})
 	router.beforeEach((to, from, next) => {
 		document.querySelector('.loader').style.display = 'block'
+		
+		
+		if (['index', 'article', 'envelope'].includes(from.name)) {
+			console.log(from.name)
+			Vue.prototype.$loadMore('none')	// 重置
+		}
+
 		next()
 	})
 }

@@ -9,10 +9,10 @@ const http = axios.create({
 // request 拦截器
 http.interceptors.request.use(
     config => {
-
         // 设置token
         const token = localStorage.getItem("Authorization");
         config.headers.Authorization = `Bearer ${token}`;
+        // config.headers['Cache-Control'] = 'max-age=60';
 
         return config;
     }, 

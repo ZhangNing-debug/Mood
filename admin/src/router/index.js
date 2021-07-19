@@ -19,7 +19,7 @@ const routes = [
 			{
 				path: '/article',
 				name: "article",
-				component: resolve => require(['@/views/article/article'], resolve)
+				component: resolve => require(['@/views/article/list'], resolve)
 			},
 			{
 				path: '/article/info',
@@ -29,7 +29,7 @@ const routes = [
 			{
 				path: '/envelope',
 				name: "envelope",
-				component: resolve => require(['@/views/envelope/envelope'], resolve)
+				component: resolve => require(['@/views/envelope/list'], resolve)
 			},
 			{
 				path: '/envelope/info',
@@ -84,25 +84,19 @@ const router = new VueRouter({
 })
 
 router.beforeEach((to, from, next) => {
-	// 激活选中路由
-	store.commit('setMenu', to.path)
+	let list = ['/article/info', '/envelope/info']
+	let name = list.indexOf(to.path) > -1 ? '/' + to.path.split('/')[1] : to.path
 
-	/**
-	 * 判断路由是否需要登录权限
-	 */
-	if (!to.meta.requireAuth) {  
-		/**
-		 * 获取当前的token
-		 * 不存在则进入登录页面
-		 */
-		if (localStorage.getItem("Authorization")) {
-			next();
+	store.commit('setMenu', name)
+	
+	if (!to.meta.requireAuth) {
+		if (localStorage.getItem("Authorization")) {  // 是否已登录
+			next()
         } else {
-			console.log('未登录 请先登录')
-            next({path: '/login'})
+            next({ path: '/login' })
         }
     } else {
-        next();
+        next()
     }
 })
 

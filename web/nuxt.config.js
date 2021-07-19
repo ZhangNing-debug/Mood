@@ -23,17 +23,10 @@ module.exports = {
   env: {
     baseUrl: process.env.BASE_URL || 'http://server:3000/web/api',
   },
-  /*
-  ** Nuxt.js modules
-  */
   modules: [
-    // Doc: https://axios.nuxtjs.org/usage
     '@nuxtjs/axios',
+    '@nuxtjs/color-mode'
   ],
-  /*
-  ** Axios module configuration
-  ** See https://axios.nuxtjs.org/options
-  */
   axios: {
     proxy: true,
     prefix: '/api', // baseURL
@@ -52,37 +45,11 @@ module.exports = {
       changeOrigin: true,
     },
   }, 
-  /*
-  ** Customize the progress-bar color
-  */
-  loading: '~/components/loadingTab.vue',
-  // loading: false,
-  /*
-  ** Global CSS
-  */
+  loading: '~/components/LoadingTab.vue',
   css: ["~assets/css/main.css", "~assets/css/iconfont.css"],
-  /*
-  ** Plugins to load before mounting the App
-  */
   plugins: [
-    { src: '@/plugins/vue-mavon-editor', ssr: true },
     { src: '@/plugins/common.js', ssr: true },
     { src: '@/plugins/component.js', ssr: true },
-    { src: '@/plugins/router.js', ssr: false },
-  ],
-  /*
-  ** Nuxt.js dev-modules
-  */
-  buildModules: [
-  ],
-  /*
-  ** Build configuration
-  */
-  build: {
-    /*
-    ** You can extend webpack config here
-    */
-    extend (config, ctx) {
-    }
-  }
+    { src: '@/plugins/router.js', ssr: false }
+  ]
 }

@@ -2,22 +2,22 @@ module.exports = (app, plugin, model) => {
     const express = require('express');
     const router = express.Router();
     
-    let {Counter, Article, Subscribe} = model
-    let {getPage, requestResult, email} = plugin
+    let { Counter, Article, Subscribe } = model
+    let { GetPage, RequestResult, Email } = plugin
 
     // 获取文章
     router.get('/article', async (req, res) => {
-        const p = req.query.page || 1;
-        const s = req.query.count || 10;
-
-        const data = await getPage(Article, p, s)
-        res.send(requestResult(data))
+        const data = await GetPage(Article, req.query.page, req.query.count)
+        // res.setHeader('Cache-Control','max-age=5')
+        // res.setHeader('last-modified', new Date().toUTCString())
+        res.send(RequestResult(1, data))
     })
 
     // 获取指定id文章
-    router.get('/article/:id', async (req, res) => {
-        const data = await Article.findOne({id: req.params.id})
-        res.send(requestResult(data))
+    router.get('/article/:id', (req, res) => {
+        Article.findOne({id: req.params.id}, (err, doc) => {
+            res.send(RequestResult(err, doc))
+        })
     })
 
     // 发布文章
@@ -37,11 +37,11 @@ module.exports = (app, plugin, model) => {
          * 发布新文章
          */
         let result = null;
-        if(articleId){
+        if (articleId) {
             // 自定义id
             req.body.data.id = articleId.count;
             result = await Article.create(req.body.data)
-        }else{
+        } else {
             /**
              * 第一次发表文章
              * 创建自增id字段
@@ -54,45 +54,45 @@ module.exports = (app, plugin, model) => {
             req.body.data.id = count.count;
             result = await Article.create(req.body.data)
         }
-        res.send(requestResult(result))
+        res.send(RequestResult(1, result))
 
         // ...Subscribe
-        const email_data = req.body.email
-        if(email_data.subscribe && !result.hide){
-            const sub = await Subscribe.find()
-            const email_list = sub.filter(i => i.active)
+        // const email_data = req.body.email
+        // if (email_data.subscribe && !result.hide) {
+        //     const sub = await Subscribe.find()
+        //     const email_list = sub.filter(i => i.active)
 
-            // 群发邮件
-            if(email_list.length > 0){
-                const send_email = email_list.reduce((t, i) => {
-                    t.push(i.email)
-                    return t
-                }, [])
-                const data = {
-                    title: result.title,
-                    url: req.headers.origin + '/' + result.id,
-                    email: send_email
-                }
-                email(2, data, email_data)
-            }
-        }
+        //     // 群发邮件
+        //     if (email_list.length > 0) {
+        //         const send_email = email_list.reduce((t, i) => {
+        //             t.push(i.email)
+        //             return t
+        //         }, [])
+        //         const data = {
+        //             title: result.title,
+        //             url: req.headers.origin + '/' + result.id,
+        //             email: send_email
+        //         }
+        //         Email(2, data, email_data)
+        //     }
+        // }
     })
 
     // 更新文章
-    router.post('/article/:id', async (req, res) => {
-        const data = await Article.findByIdAndUpdate(
+    router.post('/article/:id', (req, res) => {
+        Article.findByIdAndUpdate(
             req.params.id, 
             req.body.data, 
             (err, doc) => {
-                return doc
+                res.send(RequestResult(err, doc))
             })
-        res.send(requestResult(data))
     })
 
     // 删除文章
-    router.delete('/article/:id', async (req, res) => {
-        const data = await Article.findByIdAndDelete(req.params.id, req.body)
-        res.send(requestResult(data))
+    router.delete('/article/:id', (req, res) => {
+        Article.findByIdAndDelete(req.params.id, (err, doc) => {
+            res.send(RequestResult(err, doc))
+        })
     })
 
     app.use('/admin/api', router)

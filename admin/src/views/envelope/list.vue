@@ -1,86 +1,113 @@
 <template>
     <div class="phrase">
-        <h2 class="tit">短语列表 ({{data.length}})</h2>
+        <h2 class="tit">
+            短语列表 ({{ total }})
+            <span @click="newEnvelope" class="add"><span class="el-icon-plus"></span> 新短语</span>    
+        </h2>
 
         <el-table :data="data" style="width: 100%"  height="calc(800px - 240px)">
             
             <el-table-column label="Title">
                 <template slot-scope="scope">
-                    <p>{{scope.row.content}}</p>
+                    <p>{{ scope.row.content }}</p>
                 </template>
             </el-table-column>
 
             <el-table-column label="Date" width=140>
                 <template slot-scope="scope">
-                    <span>{{scope.row.time.month.en}} {{scope.row.time.day.on}}, {{scope.row.time.year}}</span>
+                    <span>{{ $getDate(scope.row.time) }}</span>
                 </template>
             </el-table-column>
 
             <el-table-column label="options" width=100>
                 <template slot-scope="scope">
-                    <el-tooltip effect="dark" content="Edit" placement="top">
-                        <i class="el-icon-edit" @click="edit(scope.row._id)"></i>
-                    </el-tooltip>
-                    <el-tooltip effect="dark" content="Delete" placement="top">
-                        <i class="el-icon-delete" @click="remove(scope.row)"></i>
+                    <el-tooltip 
+                        effect="dark" 
+                        placement="top"
+                        v-for="(item, index) in list"
+                        :content="item.text"
+                        :key="index"
+                    >
+                        <i :class="item.icon" @click="option(scope.row, index)"></i>
                     </el-tooltip>
                 </template>
             </el-table-column>
 
         </el-table>
 
+        <Pagination :data="total" :page="page" @update="load" />
+
     </div>
 </template>
 
 <script>
+import Pagination from '@/components/Pagination'
 export default {
+    components: { 
+        Pagination
+    },
     data() {
         return {
             data: [],
-            loading: ''
+            total: 0,
+            page: 1,
+            list: [
+                {
+                    text: 'Edit',
+                    icon: 'el-icon-edit'
+                },
+                {
+                    text: 'Delete',
+                    icon: 'el-icon-delete'
+                }
+            ]
         }
     },
-    created(){
-        this.load();
+    created() {
+        this.load()
     },
     methods: {
-        async load(){
-            this.loading = this.$loading({target: '.container'})
-            const res = await this.$http.get('/envelope');
-            setTimeout(() => {
-                this.data = res.data;
-                this.loading.close()
-            }, 500)
+        newEnvelope() {
+            this.$router.push('/envelope/info')
         },
-        remove(item){
-            this.$confirm('删除该文章, 是否继续?', '提示', {
-                confirmButtonText: '确定',
-                cancelButtonText: '取消',
-                type: 'warning'
-            }).then(() => {
-                this.$http.delete(`envelope/${item._id}`).then(res => {
-                    setTimeout(() => {
-                        this.load()
+        load(page){
+            this.$request(() => this.$http.get('/envelope', {
+                params: { page }
+            }).then(res => {
+                ['data', 'total', 'page'].map(i => this[i] = res.data.body[i])
+            }))
+        },
+        option(data, index) {
+            const o = {
+                0: () => {
+                    this.$router.push({
+                        name: 'envelopeInfo',
+                        query: { 
+                            id: data._id 
+                        }
+                    })
+                },
+                1: () => {
+                    this.$confirm('删除该信息, 是否继续?', '', {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        type: 'warning'
+                    }).then(() => {
+                        this.$http.delete(`envelope/${data._id}`).then(res => {
+                            this.load()
+                            this.$message.success('删除成功!')
+                            this.$infoUpdate()
+                        })
+                    }).catch(() => {
                         this.$message({
-                            type: 'success',
-                            message: '删除成功!'
-                        });
-                        this.$infoUpdate() // 刷新状态
-                    }, 1000)
-                })
-            }).catch(() => {
-                this.$message({
-                    type: 'info',
-                    message: '已取消删除'
-                });
-            });
-        },
-        edit(id){
-            this.$router.push({
-                name: 'envelopeInfo',
-                query: { id: id }
-            })
-        },
+                            type: 'info',
+                            message: '已取消删除'
+                        })
+                    })
+                }
+            }
+            o[index]()    
+        }
     }
 }
 </script>
@@ -129,7 +156,7 @@ export default {
             color: red;
         }
     }
-    /deep/ .el-table__body-wrapper{
+    ::v-deep .el-table__body-wrapper{
         &::-webkit-scrollbar-track {
             background: #fff;
         }

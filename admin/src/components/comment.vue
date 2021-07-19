@@ -1,11 +1,11 @@
 <template>
-    <div class="comment-form" :class="isShow?'active':''">
+    <div class="comment-form" :class="showClass">
         <div class="content">
-            <div class="img"><img :src="$data.info ? $data.info.avatar : ''"></div>
-            <p class="name">回复：{{message.name}}</p>
+            <div class="img"><img :src="avatarURL"></div>
+            <p class="name">回复：{{ message.name }}</p>
             <el-input
                 type="textarea"
-                :autosize="{ minRows: 2, maxRows: 4}"
+                :autosize="{ minRows: 2, maxRows: 4 }"
                 placeholder="请输入内容"
                 v-model="content">
             </el-input>
@@ -19,8 +19,8 @@
 </template>
 
 <script>
-import { mapState } from 'vuex'
 export default {
+    name: 'Comment',
     props: ['message'],
     data(){
         return{
@@ -29,69 +29,69 @@ export default {
         }
     },
     computed: {
-        ...mapState(['$data'])
+        info() {
+            return this.$store.state.$data.info
+        },
+        showClass() {
+            return this.isShow ? 'active' : ''
+        },
+        avatarURL() {
+            return this.info ? this.info.base.admin_avatar : ''
+        }
     },
     methods: {
         submit(){
-            if(!this.content){
+            if (!this.content) {
                 this.$message.error('请填写回复的内容');
                 return;
             }
 
+            const getAdminInfo = (name) => this.info.administrator[name]
+
             const data = {
-                name: this.$data.info.email.name,
-                email: this.$data.info.email.address,
+                name: getAdminInfo('name'),
+                email: getAdminInfo('email'),
                 content: this.content,
-                time: this.dateFormat(),
+                time: this.$dateFormat(),
                 image: 1,
                 status: 2,
                 topic_id: this.message.topic_id,
                 reply_name: this.message.name,
                 reply_email: this.message.email,
                 parent_id: this.message.parent_id || this.message.id,
+                type: this.message.type == 1 ? 2 : 3,
                 admin: true
             }
-            data.type = this.message.type == 1 ? 2 : 3;
 
             // 网站和管理员的信息
-            const email = this.$data.info['email']
-            email.web_name = this.$data.info['web_name']
-            email.web_address = this.$data.info['address']
+            const email = {
+                name: data.reply_name,
+                email: data.reply_email,
+                isEmail: getAdminInfo('comment'),
+                url: `${this.info.base['address']}/${data.topic_id}`,
+            }
 
-            this.$http.post('comment', {data, email}).then(res => {
-                if(res.data.status === 1){
-                    this.$message({
-                        message: '评论发表成功',
-                        type: 'success'
-                    });
-                    this.$emit('Load')
-                }
-                this.close()
-            }).catch(err => {
-                this.$message.error('出错了，刷新重试一下');
-                this.close()
-            })
+            this.$request(() => this.$http.post('comment', { 
+                    data, 
+                    email 
+                }).then(res => {
+                    if(res.data.status === 1){
+                        this.$message({
+                            message: '评论发表成功',
+                            type: 'success'
+                        });
+                        this.$emit('Load')
+                    }
+                    this.close()
+                }).catch(err => {
+                    this.$message.error('出错了，刷新重试一下');
+                    this.close()
+                }))
         },
         close(){
             this.content = ''
             this.isShow = !this.isShow
-        },
-        // 时间
-        dateFormat(){
-            const date = new Date();
-            const opt = {
-                "Y": date.getFullYear().toString(),        // 年
-                "M": (date.getMonth() + 1).toString(),     // 月
-                "D": date.getDate().toString(),            // 日
-                "H": date.getHours().toString(),           // 时
-                "m": date.getMinutes().toString(),         // 分
-            }
-            for(let i in opt){
-                opt[i] = opt[i].length == 1 ? opt[i].padStart(2, "0") : opt[i]
-            }
-            const time = `${opt.Y}/${opt.M}/${opt.D} ${opt.H}:${opt.m}`
-            return time
-        }
+        }   
     }
 }
 </script>>
@@ -154,7 +154,7 @@ export default {
         margin-bottom: 14px;
         padding-left: 64px;
     }
-    /deep/ textarea{
+    ::v-deep textarea{
         height: 150px !important;
         padding: 12px !important;
         background: #f1f1f1;

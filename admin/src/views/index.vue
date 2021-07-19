@@ -1,6 +1,6 @@
 <template>
     <div class="main">
-		<sidebar></sidebar>
+		<Sidebar></Sidebar>
         <div class="container">
             <div class="content">
                 <router-view/>
@@ -10,15 +10,9 @@
 </template>
 
 <script>
-import sidebar from "@/components/sidebar";
+import Sidebar from "@/components/Sidebar";
 export default {
-    components: { sidebar },
-    created() {
-        /**
-         * 刷新时,加载所需数据
-         */
-        this.$infoUpdate()
-    }
+    components: { Sidebar }
 }
 </script>
 
@@ -60,7 +54,7 @@ export default {
                 width: 6px;
                 height: 6px;
             }
-            /deep/ .el-pagination{
+            ::v-deep .el-pagination{
                 position: absolute;
                 bottom: 20px;
                 left: 0;
